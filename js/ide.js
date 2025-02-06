@@ -1,6 +1,7 @@
 import { IS_PUTER } from "./puter.js";
+import { getAIResponse } from './ai-service.js';
 
-const API_KEY = ""; // Get yours at https://platform.sulu.sh/apis/judge0
+const API_KEY = "sk_live_ewgYQQSdROm4aecOnXeq4XGbC2YnJQlo"; // Get yours at https://platform.sulu.sh/apis/judge0
 
 const AUTH_HEADERS = API_KEY ? {
     "Authorization": `Bearer ${API_KEY}`
@@ -54,15 +55,25 @@ var layoutConfig = {
     content: [{
         type: "row",
         content: [{
-            type: "component",
+            type: "column",
             width: 66,
-            componentName: "source",
-            id: "source",
-            title: "Source Code",
-            isClosable: false,
-            componentState: {
-                readOnly: false
-            }
+            content: [{
+                type: "component",
+                componentName: "source",
+                id: "source",
+                title: "Source Code",
+                isClosable: false,
+                componentState: {
+                    readOnly: false
+                }
+            }, {
+                type: "component",
+                componentName: "chat",
+                id: "chat",
+                title: "AI Chat Assistant",
+                height: 30,
+                isClosable: false
+            }]
         }, {
             type: "column",
             content: [{
@@ -581,6 +592,86 @@ document.addEventListener("DOMContentLoaded", async function () {
                     enabled: false
                 }
             });
+        });
+
+        layout.registerComponent("chat", function(container, state) {
+            const chatHtml = `
+                <div class="chat-container" style="height: 100%; display: flex; flex-direction: column;">
+                    <div class="chat-messages" style="flex: 1; overflow-y: auto; padding: 10px; background: var(--monaco-editor-background, #1e1e1e);"></div>
+                    <div class="chat-input-container" style="padding: 10px; border-top: 1px solid #404040; background: var(--monaco-editor-background, #1e1e1e);">
+                        <div style="display: flex; gap: 10px;">
+                            <input type="text" class="chat-input" placeholder="Ask a question about your code..." 
+                                   style="flex: 1; padding: 8px; border: 1px solid #404040; border-radius: 4px; 
+                                  background: #252526; color: #d4d4d4;">
+                            <button class="chat-send" style="padding: 8px 16px; background: #0078D4; color: white; 
+                                    border: none; border-radius: 4px; cursor: pointer;">Send</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            const $chat = $(chatHtml);
+            container.getElement().append($chat);
+            
+            const $chatInput = $chat.find('.chat-input');
+            const $chatMessages = $chat.find('.chat-messages');
+            const $chatSend = $chat.find('.chat-send');
+
+            function addMessage(message, isUser = false) {
+                const messageHtml = `
+                    <div class="chat-message" style="margin-bottom: 10px; ${isUser ? 'text-align: right;' : ''}">
+                        <div style="display: inline-block; max-width: 80%; padding: 8px 12px; 
+                                   border-radius: 8px; 
+                                   background: ${isUser ? '#0078D4' : '#252526'}; 
+                                   color: #d4d4d4; 
+                                   border: 1px solid ${isUser ? '#0078D4' : '#404040'};">
+                            ${message}
+                        </div>
+                    </div>
+                `;
+                $chatMessages.append(messageHtml);
+                $chatMessages.scrollTop($chatMessages[0].scrollHeight);
+            }
+
+            async function sendMessage() {
+                const message = $chatInput.val().trim();
+                if (!message) return;
+
+                // Add user message to chat
+                addMessage(message, true);
+                $chatInput.val('');
+
+                // Show loading indicator
+                $chatSend.prop('disabled', true);
+                $chatSend.text('Loading...');
+
+                try {
+                    // Get current code context
+                    const currentCode = sourceEditor.getValue();
+                    const currentLanguage = $selectLanguage.find(':selected').text();
+
+                    // Get AI response
+                    const response = await getAIResponse(message, currentCode, currentLanguage);
+                    addMessage(response);
+                } catch (error) {
+                    addMessage('Sorry, I encountered an error processing your request. Please try again.');
+                    console.error('Chat error:', error);
+                } finally {
+                    // Reset button state
+                    $chatSend.prop('disabled', false);
+                    $chatSend.text('Send');
+                }
+            }
+
+            $chatSend.click(sendMessage);
+            $chatInput.on('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    sendMessage();
+                }
+            });
+
+            // Add welcome message
+            addMessage('Hello! I can help you with your code. What questions do you have?');
         });
 
         layout.on("initialised", function () {
