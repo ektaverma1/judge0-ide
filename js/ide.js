@@ -1,7 +1,7 @@
 import { IS_PUTER } from "./puter.js";
 import { getAIResponse } from './ai-service.js';
 
-const API_KEY = "sk_live_ewgYQQSdROm4aecOnXeq4XGbC2YnJQlo"; // Get yours at https://platform.sulu.sh/apis/judge0
+const API_KEY = ""; // Get yours at https://platform.sulu.sh/apis/judge0
 
 const AUTH_HEADERS = API_KEY ? {
     "Authorization": `Bearer ${API_KEY}`
